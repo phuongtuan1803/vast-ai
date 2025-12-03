@@ -8,5 +8,5 @@ vastai create instance 1234567 \
     --image pytorch/pytorch:2.3.0-cuda12.1-cudnn8-devel \
     --disk 60 \
     --env "-e HF_TOKEN=hf_xxxxxx" \
-    --onstart-cmd "curl -sL https://gist.githubusercontent.com/LINK_TO_YOUR_RAW_SCRIPT.sh | bash" \
+    --onstart-cmd "curl -sL https://raw.githubusercontent.com/phuongtuan1803/vast-ai/refs/heads/master/setup_comfy.sh | bash" \
     --ssh --direct

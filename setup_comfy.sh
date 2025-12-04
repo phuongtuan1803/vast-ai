@@ -41,9 +41,9 @@ hf download kijai/flux-fp8 flux1-dev-fp8.safetensors --local-dir $CKPT_DIR --loc
 
 # --- Tải các Encoder cần thiết cho Flux ---
 echo "Downloading Clips..."
-hf download comfyanonymous/flux_text_encoders t5xxl_fp16.safetensors --local-dir $CLIP_DIR --local-dir-use-symlinks False
-hf download comfyanonymous/flux_text_encoders clip_l.safetensors --local-dir $CLIP_DIR --local-dir-use-symlinks False
-hf download comfyanonymous/flux_text_encoders ae.safetensors --local-dir $VAE_DIR --local-dir-use-symlinks False
+hf download comfyanonymous/flux_text_encoders t5xxl_fp16.safetensors --local-dir $CLIP_DIR
+hf download comfyanonymous/flux_text_encoders clip_l.safetensors --local-dir $CLIP_DIR
+hf download comfyanonymous/flux_text_encoders ae.safetensors --local-dir $VAE_DIR
 
 # 5. Khởi chạy ComfyUI trong Tmux (để không bị tắt khi ngắt kết nối SSH)
 tmux new-session -d -s comfy 'python main.py --listen --port 8188'

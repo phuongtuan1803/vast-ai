@@ -50,7 +50,7 @@ mkdir -p /workspace/outputs
 
 # Download additional setup files
 echo "📥 Downloading configuration files..."
-GITHUB_BASE="https://raw.githubusercontent.com/phuongtuan1803/vast-ai/main"
+GITHUB_BASE="https://raw.githubusercontent.com/phuongtuan1803/vast-ai/refs/heads/master"
 
 wget -q -O /workspace/models_config.json "${GITHUB_BASE}/models_config.json"
 wget -q -O /workspace/setup_comfyui.py "${GITHUB_BASE}/setup_comfyui.py"

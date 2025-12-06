@@ -1,5 +1,5 @@
 #!/bin/bash
-# Setup script for VastAI instance - Install required software
+# Setup script for VastAI instance - Complete setup with model downloads
 set -e
 
 echo "========================================"
@@ -48,9 +48,34 @@ mkdir -p /workspace/logs
 mkdir -p /workspace/models
 mkdir -p /workspace/outputs
 
+# Download additional setup files
+echo "📥 Downloading configuration files..."
+GITHUB_BASE="https://raw.githubusercontent.com/phuongtuan1803/vast-ai/main"
+
+wget -q -O /workspace/models_config.json "${GITHUB_BASE}/models_config.json"
+wget -q -O /workspace/setup_comfyui.py "${GITHUB_BASE}/setup_comfyui.py"
+
+echo "✅ Configuration files downloaded"
+
+# Run ComfyUI setup
+echo "🚀 Setting up ComfyUI..."
+cd /workspace
+
+# Check if MODEL_TYPE is set, otherwise default to flux
+if [ -z "$MODEL_TYPE" ]; then
+    export MODEL_TYPE="flux"
+    echo "⚠️  MODEL_TYPE not set, defaulting to: flux"
+else
+    echo "📋 Using MODEL_TYPE: $MODEL_TYPE"
+fi
+
+python3 /workspace/setup_comfyui.py --workspace /workspace --model-type "$MODEL_TYPE"
+
 # Set permissions
 chmod -R 755 /workspace
 
 echo "========================================"
 echo "✅ Setup completed successfully!"
+echo "📊 ComfyUI is running in background"
+echo "🌐 Access at: http://localhost:8188"
 echo "========================================"

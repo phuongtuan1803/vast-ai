@@ -2,8 +2,11 @@
 # Setup script for VastAI instance - Complete setup with model downloads
 set -e
 
+# Redirect all output to log file
+exec >> /workspace/log.txt 2>&1
+
 echo "========================================"
-echo "🚀 VastAI Instance Setup"
+echo "🚀 VastAI Instance Setup - $(date)"
 echo "========================================"
 
 # Update system

@@ -14,15 +14,52 @@ from typing import Dict, List, Optional
 from datetime import datetime
 
 
+# Redirect all output to log file
+class LogRedirector:
+    def __init__(self, log_path: Path):
+        self.log_path = log_path
+        self.log_file = None
+        self.original_stdout = sys.stdout
+        self.original_stderr = sys.stderr
+
+    def start(self):
+        self.log_file = open(self.log_path, 'a', encoding='utf-8')
+        sys.stdout = self
+        sys.stderr = self
+
+    def write(self, message):
+        if message.strip():  # Only write non-empty messages
+            self.original_stdout.write(message)
+            if self.log_file:
+                self.log_file.write(message)
+                self.log_file.flush()
+
+    def flush(self):
+        if self.log_file:
+            self.log_file.flush()
+
+    def stop(self):
+        sys.stdout = self.original_stdout
+        sys.stderr = self.original_stderr
+        if self.log_file:
+            self.log_file.close()
+
+
 # Global log file handler
 LOG_FILE = None
+LOG_REDIRECTOR = None
 
 
 def init_log_file(workspace_dir: Path):
     """Initialize log file for writing"""
-    global LOG_FILE
+    global LOG_FILE, LOG_REDIRECTOR
     log_path = workspace_dir / "log.txt"
-    LOG_FILE = open(log_path, 'a', encoding='utf-8')
+
+    # Start redirector
+    LOG_REDIRECTOR = LogRedirector(log_path)
+    LOG_REDIRECTOR.start()
+
+    LOG_FILE = LOG_REDIRECTOR.log_file
     log_message(f"\n{'='*60}")
     log_message(f"Setup started at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     log_message(f"{'='*60}\n")
@@ -30,12 +67,14 @@ def init_log_file(workspace_dir: Path):
 
 def close_log_file():
     """Close log file"""
-    global LOG_FILE
+    global LOG_FILE, LOG_REDIRECTOR
     if LOG_FILE:
         log_message(f"\n{'='*60}")
         log_message(f"Setup finished at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         log_message(f"{'='*60}\n")
-        LOG_FILE.close()
+
+    if LOG_REDIRECTOR:
+        LOG_REDIRECTOR.stop()
 
 
 def log_message(message: str):

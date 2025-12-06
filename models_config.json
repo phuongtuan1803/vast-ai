@@ -1,0 +1,59 @@
+{
+  "flux": {
+    "name": "Flux.1 Dev",
+    "description": "Flux.1 Dev model with FP8 optimization for 24GB VRAM",
+    "checkpoints": [
+      {
+        "repo_id": "kijai/flux-fp8",
+        "filename": "flux1-dev-fp8.safetensors",
+        "local_dir": "models/checkpoints"
+      }
+    ],
+    "clip": [
+      {
+        "repo_id": "comfyanonymous/flux_text_encoders",
+        "filename": "t5xxl_fp16.safetensors",
+        "local_dir": "models/clip"
+      },
+      {
+        "repo_id": "comfyanonymous/flux_text_encoders",
+        "filename": "clip_l.safetensors",
+        "local_dir": "models/clip"
+      }
+    ],
+    "vae": [
+      {
+        "repo_id": "kijai/flux-fp8",
+        "filename": "flux-vae-bf16.safetensors",
+        "local_dir": "models/vae",
+        "rename_to": "ae.safetensors"
+      }
+    ]
+  },
+  "stable-diffusion-xl": {
+    "name": "Stable Diffusion XL",
+    "description": "SDXL base model version 1.0",
+    "checkpoints": [
+      {
+        "repo_id": "stabilityai/stable-diffusion-xl-base-1.0",
+        "filename": "sd_xl_base_1.0.safetensors",
+        "local_dir": "models/checkpoints"
+      }
+    ],
+    "clip": [],
+    "vae": []
+  },
+  "sdxl": {
+    "name": "Stable Diffusion XL (alias)",
+    "description": "Alias for stable-diffusion-xl",
+    "checkpoints": [
+      {
+        "repo_id": "stabilityai/stable-diffusion-xl-base-1.0",
+        "filename": "sd_xl_base_1.0.safetensors",
+        "local_dir": "models/checkpoints"
+      }
+    ],
+    "clip": [],
+    "vae": []
+  }
+}

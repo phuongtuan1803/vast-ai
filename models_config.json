@@ -68,5 +68,38 @@
     ],
     "clip": [],
     "vae": []
+  },
+  "pony_v6_xl": {
+    "name": "Pony Diffusion V6 XL",
+    "description": "Core option for NSFW/Anime/2.5D. Includes VAE fix and optional separate CLIPs.",
+    "checkpoints": [
+      {
+        "repo_id": "LyliaEngine/Pony_Diffusion_V6_XL",
+        "filename": "ponyDiffusionV6XL_v6StartWithThisOne.safetensors",
+        "local_dir": "models/checkpoints"
+      }
+    ],
+    "vae": [
+      {
+        "repo_id": "nubby/blessed-sdxl-vae-fp16-fix",
+        "filename": "sdxl_vae-fp16fix-blessed.safetensors",
+        "local_dir": "models/vae",
+        "rename_to": "sdxl_vae_blessed.safetensors"
+      }
+    ],
+    "clip": [
+      {
+        "repo_id": "stabilityai/stable-diffusion-xl-base-1.0",
+        "filename": "text_encoder/model.safetensors",
+        "local_dir": "models/clip",
+        "rename_to": "clip_l.safetensors"
+      },
+      {
+        "repo_id": "stabilityai/stable-diffusion-xl-base-1.0",
+        "filename": "text_encoder_2/model.safetensors",
+        "local_dir": "models/clip",
+        "rename_to": "clip_g.safetensors"
+      }
+    ]
   }
 }

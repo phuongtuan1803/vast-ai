@@ -2,7 +2,7 @@
 # Setup script for VastAI instance - Complete setup with model downloads
 set -e
 
-# Redirect all output to log file 
+# Redirect all output to log file
 exec >> /workspace/log.txt 2>&1
 
 echo "========================================"

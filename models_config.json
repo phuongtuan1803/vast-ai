@@ -43,6 +43,19 @@
     "clip": [],
     "vae": []
   },
+  "stable-diffusion-3.5": {
+    "name": "Stable Diffusion 3.5",
+    "description": "Stable Diffusion 3.5 model with FP8 optimization",
+    "checkpoints": [    
+      {
+        "repo_id": "Comfy-Org/stable-diffusion-3.5-fp8",
+        "filename": "sd3.5_large_fp8_scaled.safetensors",
+        "local_dir": "models/checkpoints"
+      }
+    ],
+    "clip": [],
+    "vae": []
+  },
   "sdxl": {
     "name": "Stable Diffusion XL (alias)",
     "description": "Alias for stable-diffusion-xl",

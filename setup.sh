@@ -13,7 +13,7 @@ echo "========================================"
 echo "📦 Updating system packages..."
 apt-get update -qq
 
-# Install essential tools
+# Install essential tools 
 echo "🔧 Installing essential tools..."
 apt-get install -y -qq \
     git \
@@ -32,6 +32,8 @@ pip install -q \
     huggingface_hub \
     requests \
     tqdm
+
+pip install --upgrade torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 
 # Install ComfyUI dependencies
 echo "📦 Installing ComfyUI dependencies..."

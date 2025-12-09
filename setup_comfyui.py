@@ -105,19 +105,30 @@ def run_command(command: List[str], description: str = "") -> bool:
         log_message(f"{'='*60}")
     
     try:
-        result = subprocess.run(
+        # Use Popen to stream output in real-time
+        process = subprocess.Popen(
             command,
-            check=True,
-            capture_output=True,
-            text=True
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+            universal_newlines=True
         )
-        if result.stdout:
-            log_message(result.stdout)
+        
+        # Read and display output line by line in real-time
+        for line in process.stdout:
+            log_message(line.rstrip())
+        
+        # Wait for process to complete
+        process.wait()
+        
+        if process.returncode != 0:
+            log_message(f"❌ Command failed with exit code {process.returncode}")
+            return False
+        
         return True
-    except subprocess.CalledProcessError as e:
+    except Exception as e:
         log_message(f"❌ Error: {e}")
-        if e.stderr:
-            log_message(f"Error output: {e.stderr}")
         return False
 
 

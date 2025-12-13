@@ -86,7 +86,10 @@ cd /workspace
 case "$PROVISION_MODE" in
     "comfyui_only")
         echo "📦 ComfyUI only mode - no models will be downloaded"
-        python3 /workspace/setup_comfyui.py --workspace /workspace
+        if ! python3 /workspace/setup_comfyui.py --workspace /workspace; then
+            echo "❌ Failed to setup ComfyUI"
+            exit 1
+        fi
         ;;
     
     "workflow")
@@ -98,14 +101,20 @@ case "$PROVISION_MODE" in
             for wf in "${WORKFLOW_ARRAY[@]}"; do
                 if [ -f "/workspace/workflows/$wf" ]; then
                     echo "🔄 Processing workflow: $wf"
-                    python3 /workspace/setup_comfyui.py --workspace /workspace --workflow "/workspace/workflows/$wf"
+                    if ! python3 /workspace/setup_comfyui.py --workspace /workspace --workflow "/workspace/workflows/$wf"; then
+                        echo "❌ Failed to process workflow: $wf"
+                        exit 1
+                    fi
                 else
                     echo "⚠️  Workflow file not found: $wf (will be processed when uploaded)"
                 fi
             done
         else
             echo "⚠️  No workflows specified, running ComfyUI only"
-            python3 /workspace/setup_comfyui.py --workspace /workspace
+            if ! python3 /workspace/setup_comfyui.py --workspace /workspace; then
+                echo "❌ Failed to setup ComfyUI"
+                exit 1
+            fi
         fi
         ;;
     
@@ -115,22 +124,39 @@ case "$PROVISION_MODE" in
             export MODEL_TYPE="flux"
             echo "⚠️  MODEL_TYPE not set, defaulting to: flux"
         else
-            echo "📋 Using MODEL_TYPE: $MODEL_TYPE"
+        echo "📍 Using MODEL_TYPE: $MODEL_TYPE"
         fi
-        python3 /workspace/setup_comfyui.py --workspace /workspace --model-type "$MODEL_TYPE"
+        if ! python3 /workspace/setup_comfyui.py --workspace /workspace --model-type "$MODEL_TYPE"; then
+            echo "❌ Failed to setup with model type: $MODEL_TYPE"
+            exit 1
+        fi
         ;;
     
     *)
         echo "⚠️  Unknown provision mode: $PROVISION_MODE, defaulting to comfyui_only"
-        python3 /workspace/setup_comfyui.py --workspace /workspace
+        if ! python3 /workspace/setup_comfyui.py --workspace /workspace; then
+            echo "❌ Failed to setup ComfyUI"
+            exit 1
+        fi
         ;;
 esac
 
 # Set permissions
 chmod -R 755 /workspace
 
-echo "========================================"
-echo "✅ Setup completed successfully!"
-echo "📊 ComfyUI is running in background"
+# Final status check
+if [ $? -eq 0 ]; then
+    echo "========================================"
+    echo "✅ Setup completed successfully!"
+    echo "✅ ComfyUI is ready and running"
+    echo "📊 Access at: http://localhost:8188"
+    echo "========================================"
+    exit 0
+else
+    echo "========================================"
+    echo "❌ Setup failed - check logs above"
+    echo "========================================"
+    exit 1
+fi
 echo "🌐 Access at: http://localhost:8188"
 echo "========================================"

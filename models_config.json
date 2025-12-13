@@ -56,19 +56,7 @@
     "clip": [],
     "vae": []
   },
-  "sdxl": {
-    "name": "Stable Diffusion XL (alias)",
-    "description": "Alias for stable-diffusion-xl",
-    "checkpoints": [
-      {
-        "repo_id": "stabilityai/stable-diffusion-xl-base-1.0",
-        "filename": "sd_xl_base_1.0.safetensors",
-        "local_dir": "models/checkpoints"
-      }
-    ],
-    "clip": [],
-    "vae": []
-  },
+
   "pony_v6_xl": {
     "name": "Pony Diffusion V6 XL",
     "description": "Core option for NSFW/Anime/2.5D. Includes VAE fix and optional separate CLIPs.",
@@ -101,14 +89,6 @@
         "rename_to": "clip_g.safetensors"
       }
     ]
-  },
-
-  "new_setting": {
-    "name": "New Setting",
-    "description": "Description",
-    "checkpoints": [],
-    "clip": [],
-    "vae": []
   },
 
   "controlnet": {

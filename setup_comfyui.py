@@ -422,121 +422,156 @@ def setup_comfyui(
     Returns:
         True if setup was successful, False otherwise
     """
-    # Convert to Path object
-    workspace_path = Path(workspace_dir)
-    workspace_path.mkdir(parents=True, exist_ok=True)
-    
-    # Initialize log file
-    init_log_file(workspace_path)
-    
-    log_message(f"\n{'='*60}")
-    log_message(f"🚀 ComfyUI Setup Script")
-    log_message(f"{'='*60}")
-    log_message(f"Workspace: {workspace_dir}")
-    
-    # Determine provisioning mode
-    all_workflows = []
-    if workflow_paths:
-        all_workflows = [wp for wp in workflow_paths if wp and Path(wp).exists()]
-    if workflow_path and Path(workflow_path).exists():
-        all_workflows.append(workflow_path)
-    
-    if all_workflows:
-        log_message(f"Mode: Workflow-based provisioning ({len(all_workflows)} workflows)")
-        for wp in all_workflows:
-            log_message(f"  - {wp}")
-    elif model_type is None:
-        # Check environment variable
-        model_type = os.environ.get('MODEL_TYPE', '')
-    
-    if not all_workflows and not model_type:
-        log_message(f"Mode: ComfyUI only (no model downloads)")
-    elif not all_workflows:
-        # Parse multiple model types
-        model_types = [m.strip() for m in model_type.split(';') if m.strip()]
-        log_message(f"Mode: Model type provisioning")
-        log_message(f"Model Types: {', '.join(model_types)}")
-    
-    log_message(f"{'='*60}\n")
-    
-    # Install dependencies
-    install_dependencies()
-    
-    # Load models configuration
     try:
-        config = load_models_config()
-    except Exception as e:
-        log_message(f"❌ Failed to load models config: {e}")
-        close_log_file()
-        return False
-    
-    # Clone ComfyUI
-    if not clone_comfyui(workspace_path):
-        log_message("❌ Failed to clone ComfyUI")
-        close_log_file()
-        return False
-    
-    # Download models based on mode
-    overall_success = True
-    
-    if all_workflows:
-        # Multi-workflow provisioning
-        for wp in all_workflows:
-            log_message(f"\n{'='*60}")
-            log_message(f"📄 Processing workflow: {Path(wp).name}")
-            log_message(f"{'='*60}")
-            if not download_workflow_models(workspace_path, wp, config):
-                log_message(f"⚠️  Failed to download some workflow models from {wp}")
-                overall_success = False
-    elif model_type:
-        # Model type based provisioning
-        model_types = [m.strip() for m in model_type.split(';') if m.strip()]
-        for mt in model_types:
-            log_message(f"\n{'='*60}")
-            log_message(f"📦 Processing model type: {mt}")
-            log_message(f"{'='*60}")
-            if not download_models(workspace_path, mt, config):
-                log_message(f"⚠️  Failed to download some models for {mt}")
-                overall_success = False
-    else:
-        # ComfyUI only mode - no model downloads
+        # Convert to Path object
+        workspace_path = Path(workspace_dir)
+        workspace_path.mkdir(parents=True, exist_ok=True)
+        
+        # Initialize log file
+        init_log_file(workspace_path)
+        
         log_message(f"\n{'='*60}")
-        log_message(f"✅ ComfyUI only mode - skipping model downloads")
+        log_message(f"🚀 ComfyUI Setup Script")
         log_message(f"{'='*60}")
-    
-    if not overall_success:
-        log_message("\n⚠️  Some models failed to download")
-        # Don't return False, continue to start ComfyUI
-    
-    log_message(f"\n{'='*60}")
-    log_message(f"✅ Setup completed successfully!")
-    log_message(f"{'='*60}")
-    
-    # Start ComfyUI in background
-    log_message(f"\n🚀 Starting ComfyUI server in background...")
-    comfy_dir = workspace_path / 'ComfyUI'
-    
-    try:
-        import subprocess
+        log_message(f"Workspace: {workspace_dir}")
         
-        # Start ComfyUI with nohup in background
-        comfy_log = workspace_path / 'comfyui.log'
-        comfy_cmd = f"cd {comfy_dir} && nohup python main.py --listen --port 8188 > {comfy_log} 2>&1 &"
+        # Check for cached workflow metadata from local parsing
+        cached_metadata = os.environ.get('WORKFLOW_METADATA')
+        if cached_metadata:
+            log_message(f"📦 Found cached workflow metadata from local parsing")
+            try:
+                metadata = json.loads(cached_metadata)
+                log_message(f"✅ Loaded metadata for {len(metadata)} workflow(s) - skipping re-parse")
+            except json.JSONDecodeError:
+                log_message(f"⚠️  Failed to parse cached metadata, will parse workflows normally")
+                cached_metadata = None
         
-        subprocess.run(comfy_cmd, shell=True, check=False)
-        log_message(f"✅ ComfyUI started on port 8188")
-        log_message(f"📝 Logs: {comfy_log}")
-        log_message(f"\n🌐 Access ComfyUI at: http://localhost:8188")
-        log_message(f"🔗 Or via SSH tunnel: ssh -L 8188:localhost:8188 root@<instance_ip>")
+        # Determine provisioning mode
+        all_workflows = []
+        if workflow_paths:
+            all_workflows = [wp for wp in workflow_paths if wp and Path(wp).exists()]
+        if workflow_path and Path(workflow_path).exists():
+            all_workflows.append(workflow_path)
+    except Exception as e:
+        log_message(f"\n❌ CRITICAL ERROR in setup initialization: {str(e)}")
+        log_message(f"ERROR: Setup encountered critical error")
+        if LOG_FILE:
+            close_log_file()
+        return False
+    
+        if all_workflows:
+            log_message(f"Mode: Workflow-based provisioning ({len(all_workflows)} workflows)")
+            for wp in all_workflows:
+                log_message(f"  - {wp}")
+        elif model_type is None:
+            # Check environment variable
+            model_type = os.environ.get('MODEL_TYPE', '')
+        
+        if not all_workflows and not model_type:
+            log_message(f"Mode: ComfyUI only (no model downloads)")
+        elif not all_workflows:
+            # Parse multiple model types
+            model_types = [m.strip() for m in model_type.split(';') if m.strip()]
+            log_message(f"Mode: Model type provisioning")
+            log_message(f"Model Types: {', '.join(model_types)}")
+    
+        log_message(f"{'='*60}\n")
+        
+        # Install dependencies
+        install_dependencies()
+    
+        # Load models configuration
+        try:
+            config = load_models_config()
+        except Exception as e:
+            log_message(f"❌ Failed to load models config: {e}")
+            close_log_file()
+            return False
+    
+        # Clone ComfyUI
+        if not clone_comfyui(workspace_path):
+            log_message("\n❌ Failed to clone ComfyUI")
+            log_message("ERROR: Setup encountered critical error")
+            close_log_file()
+            return False
+        
+        # Download models based on mode
+        overall_success = True
+        
+        if all_workflows:
+            # Multi-workflow provisioning
+            for wp in all_workflows:
+                log_message(f"\n{'='*60}")
+                log_message(f"📄 Processing workflow: {Path(wp).name}")
+                log_message(f"{'='*60}")
+                if not download_workflow_models(workspace_path, wp, config):
+                    log_message(f"⚠️  Failed to download some workflow models from {wp}")
+                    overall_success = False
+        elif model_type:
+            # Model type based provisioning
+            model_types = [m.strip() for m in model_type.split(';') if m.strip()]
+            for mt in model_types:
+                log_message(f"\n{'='*60}")
+                log_message(f"📦 Processing model type: {mt}")
+                log_message(f"{'='*60}")
+                if not download_models(workspace_path, mt, config):
+                    log_message(f"⚠️  Failed to download some models for {mt}")
+                    overall_success = False
+        else:
+            # ComfyUI only mode - no model downloads
+            log_message(f"\n{'='*60}")
+            log_message(f"✅ ComfyUI only mode - skipping model downloads")
+            log_message(f"{'='*60}")
+        
+        if not overall_success:
+            log_message("\n⚠️  Some models failed to download")
+            log_message("ERROR: Setup encountered critical error")
+            close_log_file()
+            return False
+        
+        log_message(f"\n{'='*60}")
+        log_message(f"✅ Setup completed successfully!")
+        log_message(f"✅ All models downloaded and ComfyUI ready")
+        log_message(f"{'='*60}")
+        
+        # Start ComfyUI in background
+        log_message(f"\n🚀 Starting ComfyUI server in background...")
+        comfy_dir = workspace_path / 'ComfyUI'
+        
+        try:
+            import subprocess
+            
+            # Start ComfyUI with nohup in background
+            comfy_log = workspace_path / 'comfyui.log'
+            comfy_cmd = f"cd {comfy_dir} && nohup python main.py --listen --port 8188 > {comfy_log} 2>&1 &"
+            
+            subprocess.run(comfy_cmd, shell=True, check=False)
+            log_message(f"✅ ComfyUI started on port 8188")
+            log_message(f"📝 Logs: {comfy_log}")
+            log_message(f"\n🌐 Access ComfyUI at: http://localhost:8188")
+            log_message(f"🔗 Or via SSH tunnel: ssh -L 8188:localhost:8188 root@<instance_ip>")
+            log_message(f"\n{'='*60}")
+            log_message(f"✅ SETUP COMPLETE - ComfyUI is running")
+            log_message(f"{'='*60}")
+            
+        except Exception as e:
+            log_message(f"⚠️ Failed to auto-start ComfyUI: {e}")
+            log_message(f"\nTo start manually, run:")
+            log_message(f"  cd {comfy_dir}")
+            log_message(f"  python main.py --listen --port 8188")
+            log_message(f"\n{'='*60}")
+            log_message(f"⚠️  Setup completed but ComfyUI may not be running")
+            log_message(f"{'='*60}")
+        
+        close_log_file()
+        return True
         
     except Exception as e:
-        log_message(f"⚠️ Failed to auto-start ComfyUI: {e}")
-        log_message(f"\nTo start manually, run:")
-        log_message(f"  cd {comfy_dir}")
-        log_message(f"  python main.py --listen --port 8188")
-    
-    close_log_file()
-    return True
+        log_message(f"\n❌ UNEXPECTED ERROR: {str(e)}")
+        log_message(f"ERROR: Setup encountered critical error")
+        if LOG_FILE:
+            close_log_file()
+        return False
 
 
 if __name__ == "__main__":

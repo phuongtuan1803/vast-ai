@@ -101,5 +101,64 @@
         "rename_to": "clip_g.safetensors"
       }
     ]
+  },
+
+  "new_setting": {
+    "name": "New Setting",
+    "description": "Description",
+    "checkpoints": [],
+    "clip": [],
+    "vae": []
+  },
+
+  "controlnet": {
+    "name": "ControlNet Models",
+    "description": "ControlNet models for SDXL",
+    "controlnet": [
+      {
+        "repo_id": "xinsir/controlnet-union-sdxl-1.0",
+        "filename": "diffusion_pytorch_model.safetensors",
+        "local_dir": "models/controlnet",
+        "rename_to": "controlnet-union-sdxl.safetensors"
+      }
+    ]
+  },
+
+  "ip_adapter": {
+    "name": "IP-Adapter Models",
+    "description": "IP-Adapter models for image prompting",
+    "ipadapter": [
+      {
+        "repo_id": "h94/IP-Adapter",
+        "filename": "sdxl_models/ip-adapter_sdxl.safetensors",
+        "local_dir": "models/ipadapter"
+      }
+    ],
+    "clip_vision": [
+      {
+        "repo_id": "h94/IP-Adapter",
+        "filename": "models/image_encoder/model.safetensors",
+        "local_dir": "models/clip_vision",
+        "rename_to": "ip_adapter_clip_vision.safetensors"
+      }
+    ]
+  },
+
+  "lora_common": {
+    "name": "Common LoRA Models",
+    "description": "Popular LoRA models for various styles",
+    "loras": []
+  },
+
+  "upscaler": {
+    "name": "Upscale Models",
+    "description": "Models for image upscaling",
+    "upscale_models": [
+      {
+        "repo_id": "ai-forever/Real-ESRGAN",
+        "filename": "RealESRGAN_x4.pth",
+        "local_dir": "models/upscale_models"
+      }
+    ]
   }
 }

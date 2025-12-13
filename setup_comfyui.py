@@ -3,6 +3,7 @@
 Setup script for ComfyUI and model downloads
 Reads model configuration from models_config.json
 Model type is determined by environment variable MODEL_TYPE
+Supports workflow-based auto-provisioning
 """
 
 import os
@@ -10,7 +11,7 @@ import json
 import subprocess
 import sys
 from pathlib import Path
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Set
 from datetime import datetime
 
 
@@ -235,52 +236,176 @@ def download_models(workspace_dir: Path, model_type: str, config: Dict) -> bool:
     
     success = True
     
-    # Download checkpoints
-    if model_config.get('checkpoints'):
-        log_message("🎨 Downloading checkpoints...")
-        for checkpoint in model_config['checkpoints']:
-            local_dir = comfy_dir / checkpoint['local_dir']
-            rename_to = checkpoint.get('rename_to')
-            if not download_model_file(
-                checkpoint['repo_id'],
-                checkpoint['filename'],
-                local_dir,
-                rename_to
-            ):
-                success = False
+    # Download all model types
+    model_categories = [
+        ('checkpoints', '🎨 Downloading checkpoints...'),
+        ('clip', '📝 Downloading CLIP models...'),
+        ('vae', '🎭 Downloading VAE models...'),
+        ('loras', '🎨 Downloading LoRA models...'),
+        ('controlnet', '🎮 Downloading ControlNet models...'),
+        ('ipadapter', '🖼️  Downloading IP-Adapter models...'),
+        ('clip_vision', '👁️  Downloading CLIP Vision models...'),
+        ('upscale_models', '📈 Downloading Upscale models...'),
+        ('unet', '🧠 Downloading UNET models...'),
+    ]
     
-    # Download CLIP models
-    if model_config.get('clip'):
-        log_message("\n📝 Downloading CLIP models...")
-        for clip in model_config['clip']:
-            local_dir = comfy_dir / clip['local_dir']
-            rename_to = clip.get('rename_to')
-            if not download_model_file(
-                clip['repo_id'],
-                clip['filename'],
-                local_dir,
-                rename_to
-            ):
-                success = False
-    
-    # Download VAE models
-    if model_config.get('vae'):
-        log_message("\n🎭 Downloading VAE models...")
-        for vae in model_config['vae']:
-            local_dir = comfy_dir / vae['local_dir']
-            rename_to = vae.get('rename_to')
-            if not download_model_file(
-                vae['repo_id'],
-                vae['filename'],
-                local_dir,
-                rename_to
-            ):
-                success = False
+    for category, message in model_categories:
+        if model_config.get(category):
+            log_message(f"\n{message}")
+            for model in model_config[category]:
+                local_dir = comfy_dir / model['local_dir']
+                rename_to = model.get('rename_to')
+                if not download_model_file(
+                    model['repo_id'],
+                    model['filename'],
+                    local_dir,
+                    rename_to
+                ):
+                    success = False
     
     return success
 
 
-def setup_comfyui(workspace_dir: str = "/workspace", model_type: Optional[str] = None) -> bool:
+def download_workflow_models(workspace_dir: Path, workflow_path: str, config: Dict) -> bool:
+    """
+    Download models required by a specific workflow
+    
+    Args:
+        workspace_dir: Directory where ComfyUI is installed
+        workflow_path: Path to ComfyUI workflow JSON file
+        config: Models configuration dictionary
+    
+    Returns:
+        True if all downloads successful, False otherwise
+    """
+    try:
+        # Import workflow parser
+        from workflow_parser import WorkflowParser, ModelDependency
+        from download_models import ModelDownloader
+        
+        log_message(f"\n{'='*60}")
+        log_message(f"🔍 Parsing workflow: {workflow_path}")
+        log_message(f"{'='*60}\n")
+        
+        # Parse workflow
+        parser = WorkflowParser(workflow_path)
+        dependencies = parser.parse()
+        
+        log_message(f"📦 Found {len(dependencies.models)} model dependencies")
+        log_message(f"🔧 Found {len(dependencies.custom_nodes)} custom node dependencies\n")
+        
+        # Initialize downloader
+        comfy_dir = workspace_dir / "ComfyUI"
+        downloader = ModelDownloader(comfy_dir, log_callback=log_message)
+        
+        # Track models to download
+        models_to_download = []
+        missing_models = []
+        
+        # Check each model dependency
+        for model_dep in dependencies.models:
+            model_path = downloader.get_model_path(model_dep.name, model_dep.model_type)
+            
+            if model_path.exists():
+                log_message(f"✅ Already exists: [{model_dep.model_type}] {model_dep.name}")
+            else:
+                log_message(f"📥 Need to download: [{model_dep.model_type}] {model_dep.name}")
+                models_to_download.append(model_dep)
+        
+        if not models_to_download:
+            log_message(f"\n✅ All required models are already present!")
+            return True
+        
+        log_message(f"\n{'='*60}")
+        log_message(f"📥 Downloading {len(models_to_download)} missing models")
+        log_message(f"{'='*60}\n")
+        
+        # Try to download each model
+        success_count = 0
+        for model_dep in models_to_download:
+            # Check if model has URL in workflow
+            if model_dep.url:
+                log_message(f"\n📥 Downloading {model_dep.name} from workflow URL...")
+                success = downloader.download_from_url(
+                    url=model_dep.url,
+                    model_name=model_dep.name,
+                    model_type=model_dep.model_type,
+                    expected_hash=model_dep.hash,
+                    hash_type=model_dep.hash_type or 'sha256'
+                )
+                if success:
+                    success_count += 1
+                else:
+                    missing_models.append(model_dep)
+            else:
+                # Try to find in config
+                found_in_config = False
+                for config_type, config_data in config.items():
+                    # Check all model categories in config
+                    for category in ['checkpoints', 'vae', 'clip', 'loras', 'controlnet', 
+                                   'ipadapter', 'clip_vision', 'upscale_models', 'unet']:
+                        if category in config_data:
+                            for model_info in config_data[category]:
+                                # Match by filename
+                                if model_info['filename'].endswith(model_dep.name) or model_dep.name == model_info.get('rename_to'):
+                                    log_message(f"\n📥 Found in config: {model_dep.name}")
+                                    success = downloader.download_from_huggingface(
+                                        repo_id=model_info['repo_id'],
+                                        filename=model_info['filename'],
+                                        model_type=model_dep.model_type,
+                                        rename_to=model_info.get('rename_to')
+                                    )
+                                    if success:
+                                        success_count += 1
+                                        found_in_config = True
+                                    break
+                        if found_in_config:
+                            break
+                    if found_in_config:
+                        break
+                
+                if not found_in_config:
+                    log_message(f"⚠️  Could not find download source for: {model_dep.name}")
+                    missing_models.append(model_dep)
+        
+        # Report results
+        log_message(f"\n{'='*60}")
+        log_message(f"📊 Download Summary")
+        log_message(f"{'='*60}")
+        log_message(f"✅ Successfully downloaded: {success_count}/{len(models_to_download)}")
+        
+        if missing_models:
+            log_message(f"\n⚠️  Missing models (manual download required):")
+            for model in missing_models:
+                log_message(f"  - [{model.model_type}] {model.name}")
+            log_message(f"\nPlease download these models manually to the appropriate directories.")
+            return False
+        
+        # Handle custom nodes
+        if dependencies.custom_nodes:
+            log_message(f"\n{'='*60}")
+            log_message(f"🔧 Custom Nodes Detected")
+            log_message(f"{'='*60}")
+            log_message(f"The workflow requires {len(dependencies.custom_nodes)} custom nodes:")
+            for node in dependencies.custom_nodes:
+                log_message(f"  - {node.node_type}")
+            log_message(f"\n💡 Install via ComfyUI-Manager or manually clone to custom_nodes/")
+        
+        return True
+        
+    except Exception as e:
+        log_message(f"❌ Error processing workflow: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+
+def setup_comfyui(
+    workspace_dir: str = "/workspace",
+    model_type: Optional[str] = None,
+    workflow_path: Optional[str] = None,
+    workflow_paths: Optional[List[str]] = None
+) -> bool:
     """
     Main setup function for ComfyUI
     
@@ -289,17 +414,14 @@ def setup_comfyui(workspace_dir: str = "/workspace", model_type: Optional[str] =
         model_type: Type of model(s) to download (flux, stable-diffusion-xl, sdxl)
                    Multiple models can be separated by semicolons (e.g., "flux;sdxl")
                    If None, will read from MODEL_TYPE environment variable
+                   Ignored if workflow_path is provided
+        workflow_path: Path to single ComfyUI workflow JSON file for auto-provisioning
+                      If provided, models will be downloaded based on workflow requirements
+        workflow_paths: List of paths to ComfyUI workflow JSON files for multi-workflow provisioning
     
     Returns:
         True if setup was successful, False otherwise
     """
-    # Get model type from environment if not provided
-    if model_type is None:
-        model_type = os.environ.get('MODEL_TYPE', 'stable-diffusion-xl')
-    
-    # Parse multiple model types
-    model_types = [m.strip() for m in model_type.split(';') if m.strip()]
-    
     # Convert to Path object
     workspace_path = Path(workspace_dir)
     workspace_path.mkdir(parents=True, exist_ok=True)
@@ -311,7 +433,30 @@ def setup_comfyui(workspace_dir: str = "/workspace", model_type: Optional[str] =
     log_message(f"🚀 ComfyUI Setup Script")
     log_message(f"{'='*60}")
     log_message(f"Workspace: {workspace_dir}")
-    log_message(f"Model Types: {', '.join(model_types)}")
+    
+    # Determine provisioning mode
+    all_workflows = []
+    if workflow_paths:
+        all_workflows = [wp for wp in workflow_paths if wp and Path(wp).exists()]
+    if workflow_path and Path(workflow_path).exists():
+        all_workflows.append(workflow_path)
+    
+    if all_workflows:
+        log_message(f"Mode: Workflow-based provisioning ({len(all_workflows)} workflows)")
+        for wp in all_workflows:
+            log_message(f"  - {wp}")
+    elif model_type is None:
+        # Check environment variable
+        model_type = os.environ.get('MODEL_TYPE', '')
+    
+    if not all_workflows and not model_type:
+        log_message(f"Mode: ComfyUI only (no model downloads)")
+    elif not all_workflows:
+        # Parse multiple model types
+        model_types = [m.strip() for m in model_type.split(';') if m.strip()]
+        log_message(f"Mode: Model type provisioning")
+        log_message(f"Model Types: {', '.join(model_types)}")
+    
     log_message(f"{'='*60}\n")
     
     # Install dependencies
@@ -331,20 +476,37 @@ def setup_comfyui(workspace_dir: str = "/workspace", model_type: Optional[str] =
         close_log_file()
         return False
     
-    # Download models for each type
+    # Download models based on mode
     overall_success = True
-    for mt in model_types:
+    
+    if all_workflows:
+        # Multi-workflow provisioning
+        for wp in all_workflows:
+            log_message(f"\n{'='*60}")
+            log_message(f"📄 Processing workflow: {Path(wp).name}")
+            log_message(f"{'='*60}")
+            if not download_workflow_models(workspace_path, wp, config):
+                log_message(f"⚠️  Failed to download some workflow models from {wp}")
+                overall_success = False
+    elif model_type:
+        # Model type based provisioning
+        model_types = [m.strip() for m in model_type.split(';') if m.strip()]
+        for mt in model_types:
+            log_message(f"\n{'='*60}")
+            log_message(f"📦 Processing model type: {mt}")
+            log_message(f"{'='*60}")
+            if not download_models(workspace_path, mt, config):
+                log_message(f"⚠️  Failed to download some models for {mt}")
+                overall_success = False
+    else:
+        # ComfyUI only mode - no model downloads
         log_message(f"\n{'='*60}")
-        log_message(f"📦 Processing model type: {mt}")
+        log_message(f"✅ ComfyUI only mode - skipping model downloads")
         log_message(f"{'='*60}")
-        if not download_models(workspace_path, mt, config):
-            log_message(f"⚠️  Failed to download some models for {mt}")
-            overall_success = False
     
     if not overall_success:
         log_message("\n⚠️  Some models failed to download")
-        close_log_file()
-        return False
+        # Don't return False, continue to start ComfyUI
     
     log_message(f"\n{'='*60}")
     log_message(f"✅ Setup completed successfully!")
@@ -380,7 +542,27 @@ def setup_comfyui(workspace_dir: str = "/workspace", model_type: Optional[str] =
 if __name__ == "__main__":
     import argparse
     
-    parser = argparse.ArgumentParser(description="Setup ComfyUI and download models")
+    parser = argparse.ArgumentParser(
+        description="Setup ComfyUI and download models",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Setup ComfyUI only (no model downloads)
+  python setup_comfyui.py --workspace /workspace
+  
+  # Setup with model types
+  python setup_comfyui.py --workspace /workspace --model-type flux;sdxl
+  
+  # Setup from single workflow file
+  python setup_comfyui.py --workspace /workspace --workflow my_workflow.json
+  
+  # Setup from multiple workflow files
+  python setup_comfyui.py --workspace /workspace --workflows wf1.json wf2.json wf3.json
+  
+  # Auto-provision all models required by workflows
+  python setup_comfyui.py --workflows workflow1.json workflow2.json --workspace ./ComfyUI
+        """
+    )
     parser.add_argument(
         "--workspace",
         default="/workspace",
@@ -389,15 +571,27 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model-type",
         help="Model type(s) to download, separated by semicolons (e.g., 'flux;sdxl'). "
-             "Available: flux, stable-diffusion-xl, sdxl. "
-             "Default: from MODEL_TYPE env var or 'stable-diffusion-xl'"
+             "Available: flux, stable-diffusion-xl, sdxl, controlnet, ip_adapter, upscaler. "
+             "Default: ComfyUI only if not specified. "
+             "Ignored if --workflow or --workflows is provided."
+    )
+    parser.add_argument(
+        "--workflow",
+        help="Path to single ComfyUI workflow JSON file. If provided, will auto-download all required models."
+    )
+    parser.add_argument(
+        "--workflows",
+        nargs='+',
+        help="Paths to multiple ComfyUI workflow JSON files. If provided, will auto-download all required models."
     )
     
     args = parser.parse_args()
     
     success = setup_comfyui(
         workspace_dir=args.workspace,
-        model_type=args.model_type
+        model_type=args.model_type,
+        workflow_path=args.workflow,
+        workflow_paths=args.workflows
     )
     
     sys.exit(0 if success else 1)
